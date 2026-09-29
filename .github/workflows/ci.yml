@@ -1,0 +1,77 @@
+name: Joplin CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  build-test:
+    name: Build and Test Joplin
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Get the repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # 3. Enable Yarn
+      - name: Enable Corepack
+        run: corepack enable
+
+      # 4. Install project dependencies
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # 5. Run lint/static-analysis checks
+      - name: Run linter
+        run: yarn linter-ci
+
+      # 6. Run TypeScript checks
+      - name: Run TypeScript checks
+        run: yarn tsc
+
+      # 7. Run automated tests
+      - name: Run tests
+        run: yarn test-ci
+
+      # 8. Build the project
+      - name: Build project
+        run: yarn buildSequential
+
+      # 9. Check architectural rules
+      - name: Run architecture compliance check
+        run: |
+          echo "Checking proposed Joplin architecture..."
+
+          if [ -f scripts/architecture-check.js ]; then
+            node scripts/architecture-check.js
+          else
+            echo "No architecture-check script found yet."
+            echo "Skipping architecture compliance check."
+          fi
+
+      # 10. Create a small CI artifact showing the run succeeded
+      - name: Create build report
+        run: |
+          mkdir -p ci-output
+          echo "Joplin CI pipeline completed successfully." > ci-output/build-report.txt
+          echo "Commit: $GITHUB_SHA" >> ci-output/build-report.txt
+
+      # 11. Upload the artifact
+      - name: Upload CI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: joplin-ci-build-report
+          path: ci-output/
