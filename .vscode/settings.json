@@ -1,4 +1,5 @@
 {
 	"cSpell.enabled": true,
-	"editor.insertSpaces": false
+	"editor.insertSpaces": false,
+	"cmake.sourceDirectory": "C:/.FALL SEMESTER 2026/AI Software Engineering/Joplin Project/joplin/packages/whisper-voice-typing/android"
 }

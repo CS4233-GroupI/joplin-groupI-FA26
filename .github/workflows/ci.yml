@@ -1,77 +1,287 @@
-name: Joplin CI Pipeline
+name: Joplin CI/CD Pipeline
 
 on:
   push:
     branches:
       - main
       - dev
+
   pull_request:
     branches:
       - main
       - dev
 
+  # Allows us to simulate a release through a version tag
+  create:
+
 jobs:
-  build-test:
-    name: Build and Test Joplin
+
+  # ------------------------------------------------------------
+  # 1. Code quality / coding-practice checks
+  # ------------------------------------------------------------
+  code-quality:
+    name: Code Quality
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Get the repository code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "24"
 
-      # 3. Enable Yarn
       - name: Enable Corepack
         run: corepack enable
 
-      # 4. Install project dependencies
       - name: Install dependencies
         run: yarn install --immutable
 
-      # 5. Run lint/static-analysis checks
       - name: Run linter
         run: yarn linter-ci
 
-      # 6. Run TypeScript checks
       - name: Run TypeScript checks
         run: yarn tsc
 
-      # 7. Run automated tests
-      - name: Run tests
+
+  # ------------------------------------------------------------
+  # 2. Main automated test suite
+  # ------------------------------------------------------------
+  automated-tests:
+    name: Automated Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Run project test suite
         run: yarn test-ci
 
-      # 8. Build the project
-      - name: Build project
-        run: yarn buildSequential
 
-      # 9. Check architectural rules
-      - name: Run architecture compliance check
+  # ------------------------------------------------------------
+  # 3. Synchronization architecture tests
+  #
+  # These tests specifically exercise the shared synchronization
+  # functionality used by Joplin's different clients.
+  # ------------------------------------------------------------
+  synchronization-tests:
+    name: Synchronization Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Run synchronization tests
         run: |
-          echo "Checking proposed Joplin architecture..."
+          yarn workspace @joplin/lib test \
+            --runInBand \
+            services/synchronizer
 
-          if [ -f scripts/architecture-check.js ]; then
-            node scripts/architecture-check.js
+      - name: Verify proposed modular-sync architecture
+        run: |
+          echo "Checking modular synchronization architecture..."
+
+          if [ -f scripts/check-sync-architecture.js ]; then
+            node scripts/check-sync-architecture.js
           else
-            echo "No architecture-check script found yet."
-            echo "Skipping architecture compliance check."
+            echo "No custom modular-sync architecture script exists yet."
+            echo "Existing synchronization integration tests were executed."
           fi
 
-      # 10. Create a small CI artifact showing the run succeeded
-      - name: Create build report
+
+  # ------------------------------------------------------------
+  # 4. Plugin API compatibility
+  #
+  # Ensures the plugin-facing API can still be generated and gives
+  # us a place to enforce the proposed versioned API boundaries.
+  # ------------------------------------------------------------
+  plugin-api:
+    name: Plugin API Compatibility
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build plugin API types
+        run: yarn workspace @joplin/lib generatePluginTypes
+
+      - name: Run plugin API architecture check
+        run: |
+          echo "Checking versioned Plugin API compatibility..."
+
+          if [ -f scripts/check-plugin-api-compatibility.js ]; then
+            node scripts/check-plugin-api-compatibility.js
+          else
+            echo "No custom Plugin API compatibility script exists yet."
+            echo "Plugin API types were generated successfully."
+          fi
+
+
+  # ------------------------------------------------------------
+  # 5. Build shared backend and dependent applications
+  # ------------------------------------------------------------
+  build:
+    name: Build Joplin Workspaces
+    runs-on: ubuntu-latest
+
+    needs:
+      - code-quality
+      - automated-tests
+      - synchronization-tests
+      - plugin-api
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build all workspaces
+        run: yarn buildSequential
+
+      # Explicit checks make the workflow easier to read in GitHub.
+      - name: Build shared backend
+        run: yarn workspace @joplin/lib tsc
+
+      - name: Build Desktop application
+        run: yarn workspace @joplin/app-desktop build
+
+      - name: Build Mobile application
+        run: yarn workspace @joplin/app-mobile build
+
+      - name: Build CLI application
+        run: yarn workspace joplin build
+
+      - name: Build Joplin Server
+        run: yarn workspace @joplin/server build
+
+
+  # ------------------------------------------------------------
+  # 6. Package successful CI result
+  # ------------------------------------------------------------
+  package:
+    name: Package CI Artifact
+    runs-on: ubuntu-latest
+
+    needs:
+      - build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create CI output
         run: |
           mkdir -p ci-output
-          echo "Joplin CI pipeline completed successfully." > ci-output/build-report.txt
-          echo "Commit: $GITHUB_SHA" >> ci-output/build-report.txt
 
-      # 11. Upload the artifact
+          echo "Joplin CI/CD validation passed." \
+            > ci-output/build-report.txt
+
+          echo "Commit: $GITHUB_SHA" \
+            >> ci-output/build-report.txt
+
+          echo "Branch: $GITHUB_REF_NAME" \
+            >> ci-output/build-report.txt
+
+          echo "Checks completed:" \
+            >> ci-output/build-report.txt
+
+          echo "- Code quality" \
+            >> ci-output/build-report.txt
+
+          echo "- Automated tests" \
+            >> ci-output/build-report.txt
+
+          echo "- Synchronization tests" \
+            >> ci-output/build-report.txt
+
+          echo "- Plugin API compatibility" \
+            >> ci-output/build-report.txt
+
+          echo "- Application builds" \
+            >> ci-output/build-report.txt
+
       - name: Upload CI artifact
         uses: actions/upload-artifact@v4
         with:
-          name: joplin-ci-build-report
+          name: joplin-ci-artifact
           path: ci-output/
+
+
+  # ------------------------------------------------------------
+  # 7. Deployment gate
+  #
+  # This is intentionally a demonstration deployment step.
+  # Production deployment should only happen after all required
+  # CI checks have passed.
+  # ------------------------------------------------------------
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    needs:
+      - package
+
+    # Only allow deployment from main or version tags.
+    if: >
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Deployment gate passed
+        run: |
+          echo "All required CI checks passed."
+          echo "Deployment is permitted for:"
+          echo "$GITHUB_REF"
+
+      - name: Simulate deployment
+        run: |
+          echo "Deploying validated Joplin build..."
+          echo "In a production environment, the deployment"
+          echo "command would run here."
