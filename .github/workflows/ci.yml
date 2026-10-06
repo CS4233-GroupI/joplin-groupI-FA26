@@ -1,6 +1,8 @@
 name: Joplin CI/CD Pipeline
 
 on:
+  workflow_dispatch:
+  
   push:
     branches:
       - main
