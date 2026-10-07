@@ -14,8 +14,6 @@ const requiredConsumers = [
 	{ directory: 'app-desktop', name: '@joplin/app-desktop' },
 	{ directory: 'app-mobile', name: '@joplin/app-mobile' },
 	{ directory: 'app-cli', name: 'joplin' },
-	{ directory: 'server', name: '@joplin/server' },
-	{ directory: 'pdf-viewer', name: '@joplin/pdf-viewer' },
 ];
 
 const sharedBackend = readPackage('lib');
