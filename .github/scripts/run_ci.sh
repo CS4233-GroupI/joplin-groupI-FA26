@@ -17,21 +17,19 @@ IS_TRANSCRIBE_RELEASE=0
 IS_LINUX=0
 IS_MACOS=0
 
-# If pull requests are coming from a branch of the main repository,
-# IS_PULL_REQUEST will be zero.
 if [ "$GITHUB_EVENT_NAME" == "pull_request" ]; then
 	IS_PULL_REQUEST=1
 fi
 
-if [[ $GIT_TAG_NAME = $SERVER_TAG_PREFIX-* ]]; then
+if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == refs/tags/$SERVER_TAG_PREFIX-v* ]]; then
 	IS_SERVER_RELEASE=1
 fi
 
-if [[ $GIT_TAG_NAME = $TRANSCRIBE_TAG_PREFIX-* ]]; then
+if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == refs/tags/$TRANSCRIBE_TAG_PREFIX-v* ]]; then
 	IS_TRANSCRIBE_RELEASE=1
 fi
 
-if [[ $GIT_TAG_NAME = v* ]]; then
+if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == refs/tags/v* ]]; then
 	IS_DESKTOP_RELEASE=1
 fi
 
