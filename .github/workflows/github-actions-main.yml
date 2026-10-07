@@ -1,5 +1,11 @@
 name: Joplin Continuous Integration
-on: [push, pull_request]
+on:
+  push:
+    branches: [dev, main]
+    tags: ['v*', 'server-v*', 'transcribe-v*']
+  pull_request:
+    branches: [dev, main]
+    types: [opened, synchronize, reopened]
 
 jobs:
   Main:

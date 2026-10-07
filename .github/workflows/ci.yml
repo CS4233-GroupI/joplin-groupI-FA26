@@ -7,14 +7,15 @@ on:
     branches:
       - main
       - dev
+    # Use push alone for tags to avoid duplicate create/push runs.
+    tags:
+      - 'v*'
 
   pull_request:
     branches:
       - main
       - dev
-
-  # Allows us to simulate a release through a version tag
-  create:
+    types: [opened, synchronize, reopened]
 
 jobs:
 
@@ -272,8 +273,9 @@ jobs:
 
     # Only allow deployment from main or version tags.
     if: >
-      github.ref == 'refs/heads/main' ||
-      startsWith(github.ref, 'refs/tags/v')
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/v'))
 
     steps:
       - name: Deployment gate passed
