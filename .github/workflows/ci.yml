@@ -104,11 +104,23 @@ jobs:
             --runInBand \
             services/synchronizer
 
+      - name: Verify proposed modular-sync architecture
+        run: |
+          echo "Checking modular synchronization architecture..."
+
+          if [ -f scripts/check-sync-architecture.js ]; then
+            node scripts/check-sync-architecture.js
+          else
+            echo "No custom modular-sync architecture script exists yet."
+            echo "Existing synchronization integration tests were executed."
+          fi
+
 
   # ------------------------------------------------------------
   # 4. Plugin API compatibility
   #
-  # Ensures the plugin-facing API can still be generated.
+  # Ensures the plugin-facing API can still be generated and gives
+  # us a place to enforce the proposed versioned API boundaries.
   # ------------------------------------------------------------
   plugin-api:
     name: Plugin API Compatibility
@@ -131,6 +143,17 @@ jobs:
 
       - name: Build plugin API types
         run: yarn workspace @joplin/lib generatePluginTypes
+
+      - name: Run plugin API architecture check
+        run: |
+          echo "Checking versioned Plugin API compatibility..."
+
+          if [ -f scripts/check-plugin-api-compatibility.js ]; then
+            node scripts/check-plugin-api-compatibility.js
+          else
+            echo "No custom Plugin API compatibility script exists yet."
+            echo "Plugin API types were generated successfully."
+          fi
 
 
   # ------------------------------------------------------------
