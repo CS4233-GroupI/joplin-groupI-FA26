@@ -7,14 +7,14 @@ on:
     branches:
       - main
       - dev
+    tags:
+      - 'v*'
 
   pull_request:
+    types: [opened, synchronize, reopened, edited]
     branches:
       - main
       - dev
-
-  # Allows us to simulate a release through a version tag
-  create:
 
 jobs:
 
@@ -76,8 +76,7 @@ jobs:
   # ------------------------------------------------------------
   # 3. Synchronization architecture tests
   #
-  # These tests specifically exercise the shared synchronization
-  # functionality used by Joplin's different clients.
+  # These tests exercise synchronization functionality shared by clients.
   # ------------------------------------------------------------
   synchronization-tests:
     name: Synchronization Tests
@@ -105,25 +104,16 @@ jobs:
             services/synchronizer
 
       - name: Verify proposed modular-sync architecture
-        run: |
-          echo "Checking modular synchronization architecture..."
-
-          if [ -f scripts/check-sync-architecture.js ]; then
-            node scripts/check-sync-architecture.js
-          else
-            echo "No custom modular-sync architecture script exists yet."
-            echo "Existing synchronization integration tests were executed."
-          fi
+        run: node .github/scripts/check-sync-architecture.js
 
 
   # ------------------------------------------------------------
-  # 4. Plugin API compatibility
+  # 4. Plugin API boundary
   #
-  # Ensures the plugin-facing API can still be generated and gives
-  # us a place to enforce the proposed versioned API boundaries.
+  # Ensures the plugin-facing declarations stay within the generated API boundary.
   # ------------------------------------------------------------
   plugin-api:
-    name: Plugin API Compatibility
+    name: Plugin API Boundary
     runs-on: ubuntu-latest
 
     steps:
@@ -144,16 +134,8 @@ jobs:
       - name: Build plugin API types
         run: yarn workspace @joplin/lib generatePluginTypes
 
-      - name: Run plugin API architecture check
-        run: |
-          echo "Checking versioned Plugin API compatibility..."
-
-          if [ -f scripts/check-plugin-api-compatibility.js ]; then
-            node scripts/check-plugin-api-compatibility.js
-          else
-            echo "No custom Plugin API compatibility script exists yet."
-            echo "Plugin API types were generated successfully."
-          fi
+      - name: Verify generated Plugin API boundary
+        run: node .github/scripts/check-plugin-api-boundary.js
 
 
   # ------------------------------------------------------------
@@ -190,6 +172,9 @@ jobs:
       # Explicit checks make the workflow easier to read in GitHub.
       - name: Build shared backend
         run: yarn workspace @joplin/lib tsc
+
+      - name: Build PDF viewer
+        run: yarn workspace @joplin/pdf-viewer build
 
       - name: Build Desktop application
         run: yarn workspace @joplin/app-desktop build
@@ -243,7 +228,7 @@ jobs:
           echo "- Synchronization tests" \
             >> ci-output/build-report.txt
 
-          echo "- Plugin API compatibility" \
+          echo "- Plugin API boundary" \
             >> ci-output/build-report.txt
 
           echo "- Application builds" \
@@ -270,10 +255,11 @@ jobs:
     needs:
       - package
 
-    # Only allow deployment from main or version tags.
+    # Deployment gate: main or desktop version tags, including manual runs.
     if: >
-      github.ref == 'refs/heads/main' ||
-      startsWith(github.ref, 'refs/tags/v')
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      (github.ref == 'refs/heads/main' ||
+       startsWith(github.ref, 'refs/tags/v'))
 
     steps:
       - name: Deployment gate passed

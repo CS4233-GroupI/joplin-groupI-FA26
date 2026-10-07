@@ -2,7 +2,12 @@
 # tell us automatically if something got broken when a dependency was changed.
 
 name: react-native-android-build-apk
-on: [push, pull_request]
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    # Keep checks available on every PR base; edited also covers retargeting.
+    types: [opened, synchronize, reopened, edited]
 
 jobs:
   AssembleRelease:
