@@ -7,14 +7,14 @@ on:
     branches:
       - main
       - dev
+    tags:
+      - 'v*'
 
   pull_request:
+    types: [opened, synchronize, reopened, edited]
     branches:
       - main
       - dev
-
-  # Allows us to simulate a release through a version tag
-  create:
 
 jobs:
 
@@ -270,10 +270,11 @@ jobs:
     needs:
       - package
 
-    # Only allow deployment from main or version tags.
+    # Deployment gate: main or desktop version tags, including manual runs.
     if: >
-      github.ref == 'refs/heads/main' ||
-      startsWith(github.ref, 'refs/tags/v')
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      (github.ref == 'refs/heads/main' ||
+       startsWith(github.ref, 'refs/tags/v'))
 
     steps:
       - name: Deployment gate passed
