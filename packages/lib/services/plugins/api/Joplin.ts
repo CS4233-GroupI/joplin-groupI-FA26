@@ -9,6 +9,7 @@ import JoplinCommands from './JoplinCommands';
 import JoplinViews from './JoplinViews';
 import JoplinInterop from './JoplinInterop';
 import JoplinSettings from './JoplinSettings';
+import { createPluginSettingsFacade, PluginSettingsService } from './createPluginSettingsFacade';
 import JoplinContentScripts from './JoplinContentScripts';
 import JoplinClipboard from './JoplinClipboard';
 import JoplinWindow from './JoplinWindow';
@@ -44,7 +45,7 @@ export default class Joplin {
 	private commands_: JoplinCommands = null;
 	private views_: JoplinViews = null;
 	private interop_: JoplinInterop = null;
-	private settings_: JoplinSettings = null;
+	private settings_: PluginSettingsService = null;
 	private contentScripts_: JoplinContentScripts = null;
 	private clipboard_: JoplinClipboard = null;
 	private window_: JoplinWindow = null;
@@ -63,7 +64,7 @@ export default class Joplin {
 		this.commands_ = new JoplinCommands(plugin);
 		this.views_ = new JoplinViews(implementation.joplin.views, plugin, store);
 		this.interop_ = new JoplinInterop();
-		this.settings_ = new JoplinSettings(plugin);
+		this.settings_ = createPluginSettingsFacade(new JoplinSettings(plugin));
 		this.contentScripts_ = new JoplinContentScripts(plugin);
 		this.clipboard_ = new JoplinClipboard(implementation.clipboard as ConstructorParameters<typeof JoplinClipboard>[0], implementation.nativeImage as ConstructorParameters<typeof JoplinClipboard>[1]);
 		this.window_ = new JoplinWindow(plugin, store);
@@ -124,7 +125,7 @@ export default class Joplin {
 		return this.interop_;
 	}
 
-	public get settings(): JoplinSettings {
+	public get settings(): PluginSettingsService {
 		return this.settings_;
 	}
 
