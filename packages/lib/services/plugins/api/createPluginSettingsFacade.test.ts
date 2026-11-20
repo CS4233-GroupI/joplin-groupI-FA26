@@ -1,10 +1,24 @@
-import { createPluginSettingsFacade, PluginSettingsService } from './createPluginSettingsFacade';
+import { createPluginSettingsFacade } from './createPluginSettingsFacade';
+import type { PluginSettingsService } from './createPluginSettingsFacade';
+import { SettingItemType } from '../../../models/settings/types';
 
 const createMockSettingsService = () => ({
 	registerSettings: jest.fn<
 		ReturnType<PluginSettingsService['registerSettings']>,
 		Parameters<PluginSettingsService['registerSettings']>
 	>().mockResolvedValue(undefined),
+	registerSetting: jest.fn<
+		ReturnType<PluginSettingsService['registerSetting']>,
+		Parameters<PluginSettingsService['registerSetting']>
+	>().mockResolvedValue(undefined),
+	registerSection: jest.fn<
+		ReturnType<PluginSettingsService['registerSection']>,
+		Parameters<PluginSettingsService['registerSection']>
+	>().mockResolvedValue(undefined),
+	values: jest.fn<
+		ReturnType<PluginSettingsService['values']>,
+		Parameters<PluginSettingsService['values']>
+	>(),
 	value: jest.fn<
 		ReturnType<PluginSettingsService['value']>,
 		Parameters<PluginSettingsService['value']>
@@ -12,6 +26,18 @@ const createMockSettingsService = () => ({
 	setValue: jest.fn<
 		ReturnType<PluginSettingsService['setValue']>,
 		Parameters<PluginSettingsService['setValue']>
+	>().mockResolvedValue(undefined),
+	globalValues: jest.fn<
+		ReturnType<PluginSettingsService['globalValues']>,
+		Parameters<PluginSettingsService['globalValues']>
+	>(),
+	globalValue: jest.fn<
+		ReturnType<PluginSettingsService['globalValue']>,
+		Parameters<PluginSettingsService['globalValue']>
+	>(),
+	onChange: jest.fn<
+		ReturnType<PluginSettingsService['onChange']>,
+		Parameters<PluginSettingsService['onChange']>
 	>().mockResolvedValue(undefined),
 });
 
@@ -26,14 +52,14 @@ describe('createPluginSettingsFacade', () => {
 
 	test('should forward settings definitions to the service', async () => {
 		const definitions: Parameters<PluginSettingsService['registerSettings']>[0] = {
-			refreshInterval: { value: 30, type: 1, public: true, label: 'Refresh interval' },
-			retryCount: { value: 3, type: 1, public: true, label: 'Retry count' },
+			refreshInterval: { value: 30, type: SettingItemType.Int, public: true, label: 'Refresh interval' },
+			retryCount: { value: 3, type: SettingItemType.Int, public: true, label: 'Retry count' },
 		};
 
 		await facade.registerSettings(definitions);
 
 		expect(settingsService.registerSettings).toHaveBeenCalledTimes(1);
-		expect(settingsService.registerSettings).toHaveBeenCalledWith(definitions);
+		expect(settingsService.registerSettings.mock.calls[0][0]).toBe(definitions);
 	});
 
 	test.each([
@@ -45,11 +71,10 @@ describe('createPluginSettingsFacade', () => {
 	])('should forward the key and return %s unchanged', async (_label, value) => {
 		settingsService.value.mockResolvedValueOnce(value);
 
-		const result = await facade.value('pluginSetting');
+		await expect(facade.value('pluginSetting')).resolves.toBe(value);
 
 		expect(settingsService.value).toHaveBeenCalledTimes(1);
 		expect(settingsService.value).toHaveBeenCalledWith('pluginSetting');
-		expect(result).toBe(value);
 	});
 
 	test.each([
